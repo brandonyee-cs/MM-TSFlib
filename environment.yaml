@@ -22,7 +22,6 @@ dependencies:
 
   # Time Series specific
   - statsmodels
-  - arch
   - sktime
   
   # Visualization
@@ -39,7 +38,6 @@ dependencies:
   
   # Progress & Utilities
   - tqdm
-  - patoolib
   - filelock
   
   # Symbolic Math
@@ -74,5 +72,7 @@ dependencies:
     - local-attention
     # Multiprocessing
     - multiprocess
+    # Add packages that couldn't be found in conda channels
+    - arch
 
 
