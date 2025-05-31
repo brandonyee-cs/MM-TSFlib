@@ -778,8 +778,8 @@ The Chimera model significantly enhances the basic multimodal fusion approach by
 
 ### 8.3 Training Strategy
 
-1. Start with pre-training the iTransformer part of the model on time series data only.
-2. Then freeze the iTransformer weights and train only the fusion components.
+1. Start with pre-training the iTransformer part of the model on time series data only (ideally we find a pre-trained set of weights for this -- a foundation model).
+2. Then freeze the iTransformer weights and train only the fusion components. Train / val data will initially (for testing) be a k-fold CV on the Time-MMD dataset (small). However, since this is the benchmark, for final evaluation we would ideally train on something else (earnings calls and financial statements + hopefully scrape more of our own data that covers the same range of topics as the benchmark), then evaluate on the benchmark.
 3. Finally, fine-tune the entire model end-to-end with a lower learning rate.
 
 This staged approach can help stabilize training and prevent the fusion components from dominating before they've learned meaningful representations.
