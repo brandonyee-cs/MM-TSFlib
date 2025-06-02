@@ -1,0 +1,42 @@
+[project]
+name = "mm-tsflib"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "accelerate>=1.7.0",
+    "aiohttp>=3.12.6",
+    "arch>=7.2.0",
+    "axial-positional-embedding>=0.3.12",
+    "datasets>=3.6.0",
+    "einops>=0.8.1",
+    "filelock>=3.18.0",
+    "gensim>=4.3.3",
+    "huggingface-hub>=0.32.3",
+    "ipython>=9.3.0",
+    "local-attention>=1.11.1",
+    "matplotlib>=3.10.3",
+    "multiprocess>=0.70.16",
+    "nltk>=3.9.1",
+    "numpy>=1.26.4",
+    "pandas>=2.2.3",
+    "plotly>=6.1.2",
+    "pyyaml>=6.0.2",
+    "reformer-pytorch>=1.4.4",
+    "regex>=2024.11.6",
+    "requests>=2.32.3",
+    "scikit-learn>=1.6.1",
+    "scipy>=1.13.1",
+    "sktime>=0.37.0",
+    "statsmodels>=0.14.4",
+    "sympy>=1.14.0",
+    "tokenizers>=0.21.1",
+    "torch>=2.7.0",
+    "torchaudio>=2.7.0",
+    "torchvision>=0.22.0",
+    "tqdm>=4.67.1",
+    "transformers>=4.52.4",
+    "tsdb>=0.7.1",
+    "utilsforecast>=0.2.12",
+]
