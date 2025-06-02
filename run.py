@@ -12,6 +12,7 @@ import numpy as np
 import numpy as np
 import pandas as pd
 import re
+from pathlib import Path
 
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "true"
@@ -130,8 +131,10 @@ if __name__ == '__main__':
     parser.add_argument('--use_closedllm', type=int, default=0, help='use closedllm or not')    
     parser.add_argument('--huggingface_token', type=str, help='your token of huggingface;need for llama3')
     args = parser.parse_args()
-    domain= re.search(r'/([^/]+)$', args.root_path).group(1)
+    
+    domain = Path(args.root_path).name
     print("now running on domain {} model {} ".format(domain,args.model))
+    
     if args.model=="LightTS":   
         if args.pred_len<args.seq_len:
             args.seq_len=args.pred_len
