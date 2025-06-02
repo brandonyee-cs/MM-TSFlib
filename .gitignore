@@ -1,5 +1,7 @@
 # Ignore pycache
 __pycache__/
 
-# Ignore training checkpoints
+# Ignore training checkpoints and test results
 *.pth
+test_results/
+results/
