@@ -420,6 +420,8 @@ class FeatureGate(nn.Module):
     - 'simple_linear': Simple adaptive gate (alpha) using one linear layer on concatenated features.
     - 'lightweight_linear': Lightweight linear gate using LayerNorm.
     - 'vector_gate_linear': Lightweight linear gate (G) using LayerNorm, applied like MLP gate.
+    - 'per_token_scalar': Linear gate producing one scalar per token.
+    - 'global_scalar': Mean-pooled inputs to a linear gate producing one scalar per batch.
     """
     def __init__(self, fused_dim, ts_dim, gate_type='mlp', hidden_dim=None):
         super(FeatureGate, self).__init__()
@@ -460,8 +462,14 @@ class FeatureGate(nn.Module):
                 nn.LayerNorm(ts_dim), # Apply LayerNorm before sigmoid
                 nn.Sigmoid()
             )
+        elif gate_type == 'per_token_scalar' or gate_type == 'global_scalar': # Use same computation
+            # Computes beta = sigma(Linear([F+T, 1]))
+            self.gate_network = nn.Sequential(
+                nn.Linear(fused_dim + ts_dim, 1),
+                nn.Sigmoid()
+            )
         else:
-            raise ValueError(f"Unsupported gate_type: {gate_type}. Choose 'mlp', 'simple_linear', 'lightweight_linear', or 'vector_gate_linear'.")
+            raise ValueError(f"Unsupported gate_type: {gate_type}. Choose 'mlp', 'simple_linear', 'lightweight_linear', 'vector_gate_linear', 'per_token_scalar', 'global_scalar'.")
 
     def forward(self, fused_latent_features, ts_features):
         """
@@ -473,21 +481,31 @@ class FeatureGate(nn.Module):
             
         Returns:
             gated_output: Combined features with learned gating (B, L, ts_dim)
-            gate_value: The computed gate (G or alpha) for potential regularization (B, L, ts_dim)
+            gate_value: The computed gate (G, alpha, or beta) for potential regularization (B, L, ts_dim)
         """
         # Project fused features from latent dimension to time series dimension
         projected_fused = self.fused_projection(fused_latent_features) # F' (B, L, ts_dim)
         
-        # Compute gate value (G or alpha)
+        # Compute gate value (G, alpha, or beta)
         # Input features for gate computation need the pre-projection fused features (F)
         concat_features = torch.cat([fused_latent_features, ts_features], dim=-1) # [F, T]
-        gate_value = self.gate_network(concat_features) # G or alpha (B, L, ts_dim)
+
+        if self.gate_type == 'global_scalar':
+            pooled = concat_features.mean(dim=1)
+            beta = self.gate_network(pooled)
+            gate_value = beta.unsqueeze(1).unsqueeze(2)
+        else:
+            gate_value = self.gate_network(concat_features) # G, alpha, or beta
         
-        # Apply gate: O = G * F' + (1 - G) * T  OR  O = alpha * T + (1 - alpha) * F'
-        if self.gate_type == 'mlp' or self.gate_type == 'vector_gate_linear':
+        # Apply one of gate G, alpha, or beta: 
+        # O = G * F' + (1 - G) * T
+        # O = alpha * T + (1 - alpha) * F'
+        # O = beta * T + (1 - beta) * F'
+        if self.gate_type in {'mlp', 'vector_gate_linear'}:
             # Gate weights the projected fused features (F')
             gated_output = gate_value * projected_fused + (1 - gate_value) * ts_features
-        elif self.gate_type == 'simple_linear' or self.gate_type == 'lightweight_linear':
+        elif self.gate_type in {'simple_linear', 'lightweight_linear', 
+                                'per_token_scalar', 'global_scalar'}:
             # Gate weights the original time series features (T)
             gated_output = gate_value * ts_features + (1 - gate_value) * projected_fused
         # else case handled by __init__ check
@@ -545,6 +563,20 @@ All gating mechanisms first require projecting the fused latent features $ F $ t
         $$
         where $ W_g \in \mathbb{R}^{(d_f + d_t) \times d_t} $, $ b_g \in \mathbb{R}^{d_t} $.
 
+    *   **`per_token_scalar` Gate Type**: 
+        A simple linear layer that comuptes a gate with one scalar per time step/token. More interpretable, we know exactly when the model switches from weighing text vs. TS more highly. Computes gate $\beta \in [0, 1]^{B \times L \times 1}$
+        $$
+        \beta = \sigma (W_g C + b_g)
+        $$
+        where $W_b \in \mathbb{R}^{(d_f + d_t)\times 1}, b_g \in \mathbb{R}^{1}$.
+
+    *   **`global_scalar` Gate Type**:
+        Mean pooling along sequence length (to condense to a single scalar) followed by a linear layer. Simpler than per_token, but low granularity. Computes gate $\beta \in [0, 1]^{B \times 1 \times 1}$
+        $$
+        \beta = \sigma (W_g \bar C + b_g)
+        $$
+        where $W_b \in \mathbb{R}^{(d_f + d_t)\times 1}, b_g \in \mathbb{R}^{1}, \bar C = \text{Mean}_L [C] $.
+
 3.  **Final Gated Output** ($ O \in \mathbb{R}^{B \times L \times d_t} $):
     The final output $ O $ is computed differently based on the gate type:
 
@@ -561,6 +593,13 @@ All gating mechanisms first require projecting the fused latent features $ F $ t
         O = \alpha \odot T + (1 - \alpha) \odot F'
         $$
         where $ \alpha $ is the gate value.
+
+    *   For `gate_type='per_token_scalar'` or `gate_type='global_scalar'`:
+        The gate can weigh the original time series features $T$:
+        $$
+        O = \beta \odot T + (1 - \beta) \odot F'
+        $$
+        where $ \beta $ is the gate value.
 
 4.  **Optional L1 Regularization Loss**:
     If `gate_regularization_lambda` ($ \lambda $) > 0, the following loss term is added during training:
