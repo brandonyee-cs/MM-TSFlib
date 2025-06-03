@@ -595,7 +595,7 @@ All gating mechanisms first require projecting the fused latent features $ F $ t
         where $ \alpha $ is the gate value.
 
     *   For `gate_type='per_token_scalar'` or `gate_type='global_scalar'`:
-        The gate can weigh the original time series features $T$:
+        The gate wegihts the original time series features $T$:
         $$
         O = \beta \odot T + (1 - \beta) \odot F'
         $$
