@@ -536,9 +536,9 @@ All gating mechanisms first require projecting the fused latent features $ F $ t
     The gate value is computed based on the `gate_type` using the *pre-projection* fused features $ F $ and the time series features $ T $. Let $ C = [F, T] \in \mathbb{R}^{B \times L \times (d_f + d_t)} $ be the concatenation.
 
     *   **`mlp` Gate Type**:
-        A two-layer MLP computes the gate $ G \in [0, 1]^{B \times L \times d_t} $:
+        A two-layer MLP computes the gate $ \alpha \in [0, 1]^{B \times L \times d_t} $:
         $$
-        G = \sigma(W_{g2} \cdot \text{ReLU}(W_{g1} C + b_{g1}) + b_{g2})
+        \alpha = \sigma(W_{g2} \cdot \text{ReLU}(W_{g1} C + b_{g1}) + b_{g2})
         $$
         where $ W_{g1} \in \mathbb{R}^{(d_f + d_t) \times d_h} $, $ b_{g1} \in \mathbb{R}^{d_h} $, $ W_{g2} \in \mathbb{R}^{d_h \times d_t} $, $ b_{g2} \in \mathbb{R}^{d_t} $.
 
@@ -557,49 +557,34 @@ All gating mechanisms first require projecting the fused latent features $ F $ t
         where $ W_g \in \mathbb{R}^{(d_f + d_t) \times d_t} $, $ b_g \in \mathbb{R}^{d_t} $.
 
     *   **`vector_gate_linear` Gate Type**:
-        A single linear layer followed by Layer Normalization computes the gate $ G \in [0, 1]^{B \times L \times d_t} $ (same computation as `lightweight_linear`):
+        A single linear layer followed by Layer Normalization computes the gate $ \alpha \in [0, 1]^{B \times L \times d_t} $ (same computation as `lightweight_linear`):
         $$
-        G = \sigma(\text{LayerNorm}(W_g C + b_g))
+        \alpha = \sigma(\text{LayerNorm}(W_g C + b_g))
         $$
         where $ W_g \in \mathbb{R}^{(d_f + d_t) \times d_t} $, $ b_g \in \mathbb{R}^{d_t} $.
 
     *   **`per_token_scalar` Gate Type**: 
-        A simple linear layer that comuptes a gate with one scalar per time step/token. More interpretable, we know exactly when the model switches from weighing text vs. TS more highly. Computes gate $\beta \in [0, 1]^{B \times L \times 1}$
+        A simple linear layer that comuptes a gate with one scalar per time step/token. More interpretable, we know exactly when the model switches from weighing text vs. TS more highly. Computes gate $\alpha \in [0, 1]^{B \times L \times 1}$
         $$
-        \beta = \sigma (W_g C + b_g)
+        \alpha = \sigma (W_g C + b_g)
         $$
         where $W_b \in \mathbb{R}^{(d_f + d_t)\times 1}, b_g \in \mathbb{R}^{1}$.
 
     *   **`global_scalar` Gate Type**:
-        Mean pooling along sequence length (to condense to a single scalar) followed by a linear layer. Simpler than per_token, but low granularity. Computes gate $\beta \in [0, 1]^{B \times 1 \times 1}$
+        Mean pooling along sequence length (to condense to a single scalar) followed by a linear layer. Simpler than per_token, but low granularity. Computes gate $\alpha \in [0, 1]^{B \times 1 \times 1}$
         $$
-        \beta = \sigma (W_g \bar C + b_g)
+        \alpha = \sigma (W_g \bar C + b_g)
         $$
         where $W_b \in \mathbb{R}^{(d_f + d_t)\times 1}, b_g \in \mathbb{R}^{1}, \bar C = \text{Mean}_L [C] $.
 
 3.  **Final Gated Output** ($ O \in \mathbb{R}^{B \times L \times d_t} $):
-    The final output $ O $ is computed differently based on the gate type:
+    The final output $ O $ is computed and shaped the same for all gate types:
 
-    *   For `gate_type='mlp'` or `gate_type='vector_gate_linear'`:
-        The gate weights the projected fused features $ F' $:
-        $$
-        O = G \odot F' + (1 - G) \odot T
-        $$
-        where $ G $ is the gate value and $ \odot $ is element-wise multiplication.
-
-    *   For `gate_type='simple_linear'` or `gate_type='lightweight_linear'`:
-        The gate weights the original time series features $ T $:
+    *   The gate weights the time series features $T$:
         $$
         O = \alpha \odot T + (1 - \alpha) \odot F'
         $$
-        where $ \alpha $ is the gate value.
-
-    *   For `gate_type='per_token_scalar'` or `gate_type='global_scalar'`:
-        The gate wegihts the original time series features $T$:
-        $$
-        O = \beta \odot T + (1 - \beta) \odot F'
-        $$
-        where $ \beta $ is the gate value.
+        where $ \alpha $ is the gate value and $ \odot $ is element-wise multiplication. To avoid the architecture initially favoring one modality, initialize $W_g$ and $b_g$ to be centered around 0, leading to $\alpha=0.5$. Add different initialization type for `mlp` gate to allow gradients to reach ReLU.
 
 4.  **Optional L1 Regularization Loss**:
     If `gate_regularization_lambda` ($ \lambda $) > 0, the following loss term is added during training:
