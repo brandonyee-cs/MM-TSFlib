@@ -1,0 +1,78 @@
+name: mm-tsflib-env  # Choose a suitable environment name
+channels:
+  - pytorch        # Channel for PyTorch
+  - nvidia         # Channel for CUDA-related PyTorch builds (if using GPU)
+  - conda-forge    # Community channel, often has more up-to-date packages
+  - defaults       # Default Conda channel
+dependencies:
+  # Core Python
+  - python=3.9     # project developed using 3.9.18
+  - pip
+
+  # PyTorch Ecosystem
+  - pytorch
+  - torchvision
+  - torchaudio
+  - einops
+
+  # Data processing & numerical libraries
+  - numpy
+  - pandas
+  - scipy
+
+  # Time Series specific
+  - statsmodels
+  - sktime
+  
+  # Visualization
+  - matplotlib
+  - plotly
+  
+  # Machine Learning
+  - scikit-learn
+  
+  # Text Processing
+  - nltk
+  - gensim
+  - regex
+  
+  # Progress & Utilities
+  - tqdm
+  - filelock
+  
+  # Symbolic Math
+  - sympy
+  
+  # Configuration & Files
+  - pyyaml
+  
+  # Network & API
+  - requests
+  - aiohttp
+  
+  # Debugging
+  - ipython
+  
+  # Additional dependencies via pip
+  - pip:
+    # Hugging Face Ecosystem
+    - transformers
+    - datasets
+    - huggingface-hub
+    - tokenizers
+    # PyTorch Extensions
+    - reformer-pytorch
+    # Deep Learning Utilities
+    - accelerate
+    # Time Series Libraries
+    - tsdb
+    - utilsforecast
+    # For model features that appear in the code
+    - axial-positional-embedding
+    - local-attention
+    # Multiprocessing
+    - multiprocess
+    # Add packages that couldn't be found in conda channels
+    - arch
+
+
