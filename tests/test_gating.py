@@ -6,7 +6,6 @@ from layers.GatingMechanism import FeatureGate
 # -------------------- helpers -------------------- #
 B, L, DF, DT = 2, 4, 8, 6                      # small but non‑trivial
 
-GATES_WEIGHT_FUSED   = {"mlp", "vector_gate_linear"}
 GATES_WEIGHT_TS      = {
     "simple_linear",
     "lightweight_linear",
@@ -56,11 +55,7 @@ def test_feature_gate_forward(gate_type):
     # ----- 3.  equation correctness -----
     F_proj = gate.fused_projection(F)               # replicate internal projection
 
-    if gate_type in GATES_WEIGHT_FUSED:
-        O_expected = G * F_proj + (1 - G) * T
-    else:  # gate weights TS
-        O_expected = G * T + (1 - G) * F_proj
-
+    O_expected = G * T + (1 - G) * F_proj
     torch.testing.assert_close(O, O_expected, atol=1e-6, rtol=1e-6)
 
     # ----- 4.  gradient flows -----
